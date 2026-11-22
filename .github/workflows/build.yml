@@ -16,10 +16,43 @@ jobs:
         run: |
           unzip -o Florentino-Trainer-Xcode-Source.zip -d source
 
+      - name: Fix Xcode source files
+        run: |
+          gem install xcodeproj --no-document
+          PROJECT=$(find source -name "FlorentinoTrainer.xcodeproj" -print -quit)
+          test -n "$PROJECT"
+
+          ruby - "$PROJECT" <<'RUBY'
+          require 'xcodeproj'
+
+          project_path = ARGV.fetch(0)
+          project = Xcodeproj::Project.open(project_path)
+          target = project.targets.find { |t| t.name == 'FlorentinoTrainer' }
+          abort 'Target not found' unless target
+
+          source_dir = File.join(File.dirname(project_path), 'FlorentinoTrainer')
+          files = Dir.glob(File.join(source_dir, '*.swift'))
+
+          abort 'No Swift files found' if files.empty?
+
+          files.each do |path|
+            name = File.basename(path)
+            ref = project.files.find { |f| File.basename(f.path.to_s) == name }
+            ref ||= project.main_group.new_file("FlorentinoTrainer/#{name}")
+
+            unless target.source_build_phase.files_references.include?(ref)
+              target.add_file_references([ref])
+            end
+
+            puts "Added: #{name}"
+          end
+
+          project.save
+          RUBY
+
       - name: Build app
         run: |
           PROJECT=$(find source -name "FlorentinoTrainer.xcodeproj" -print -quit)
-          test -n "$PROJECT"
           xcodebuild -project "$PROJECT" \
             -target FlorentinoTrainer \
             -sdk iphoneos \
