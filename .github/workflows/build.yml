@@ -24,13 +24,14 @@ jobs:
             -target FlorentinoTrainer \
             -sdk iphoneos \
             -configuration Release \
-            -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO build
+            CONFIGURATION_BUILD_DIR="$GITHUB_WORKSPACE/build/Release-iphoneos" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
 
       - name: Package IPA
         run: |
-          APP=$(find build/Build/Products/Release-iphoneos \
-            -maxdepth 1 -name "*.app" -print -quit)
+          APP=$(find build/Release-iphoneos -maxdepth 1 -name "*.app" -print -quit)
           test -n "$APP"
           mkdir -p Payload
           cp -R "$APP" Payload/
@@ -41,3 +42,5 @@ jobs:
         with:
           name: FlorentinoTrainer-unsigned-IPA
           path: FlorentinoTrainer-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
